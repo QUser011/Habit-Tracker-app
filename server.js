@@ -29,7 +29,10 @@ app.get("/days/:date", async (req, res) => {
       [date]
     );
 
-    res.json(result.rows[0]);
+    //res.json(result.rows[0]);
+    if (!result.rows.length) {
+  return res.status(404).json({ message: "Day not found" });
+}
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -37,6 +40,12 @@ app.get("/days/:date", async (req, res) => {
 
 app.post("/days", async (req, res) => {
   const { user_id, date, note, color, done = false } = req.body;
+
+    if (!user_id || !date) {
+    return res.status(400).json({
+      error: "user_id and date are required",
+    });
+  }
 
   try {
     await pool.query(
