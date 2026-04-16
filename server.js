@@ -29,10 +29,7 @@ app.get("/days/:date", async (req, res) => {
       [date]
     );
 
-    //res.json(result.rows[0]);
-    if (!result.rows.length) {
-  return res.status(404).json({ message: "Day not found" });
-}
+    res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send(err.message);
   }
