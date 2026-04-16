@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Calendar Tracker</title>
+
+
+<style>
+body {
+    font-family: Arial;
+    padding: 20px;
+    background: #fafafa;
+}
+
+.calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 20px;
+}
+
+.day, .week {
+    padding: 12px;
+    text-align: center;
+}
+
+.week {
+    font-weight: bold;
+    background: #eee;
+}
+
+.day {
+    border: 1px solid #ccc;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.day:hover {
+    background: #f5f5f5;
+}
+
+.selected {
+    border: 2px solid black;
+}
+
+.green { background: #a8e6a3; }
+.red { background: #f5a3a3; }
+.yellow { background: #fff3a3; }
+
+textarea {
+    width: 33%;
+    height: 100px;
+    font-size: 20px;
+}
+
+button {
+    margin-top: 10px;
+}
+
+.save-btn {
+    width: 10%;
+    padding: 12px;
+    font-size: 14px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+/* 🔥 SELECT */
+select {
+    width: 10%;
+    padding: 8px;
+    font-size: 14px;
+    margin-top: 8px;
+    cursor: pointer;
+}
+.done {
+    opacity: 0.4;
+    filter: blur(0.3px);
+    transform: scale(0.95);
+    transition: all 0.2s ease;
+}
+.done:hover {
+    opacity: 0.6;
+    filter: blur(0px);
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>📅 Calendar</h2>
+
+<div style="margin-bottom:10px;">
+    🟢 Rest &nbsp;&nbsp;
+    🔴 Run &nbsp;&nbsp;
+    🟡 Gym
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <button onclick="changeMonth(-1)">◀</button>
+    <h3 id="monthLabel"></h3>
+    <button onclick="changeMonth(1)">▶</button>
+</div>
+
+<div id="calendar" class="calendar"></div>
+
+<h3 id="selectedDate">Select a day</h3>
+
+<textarea id="note" placeholder="Comment"></textarea>
+
+<br>
+
+<div style="margin-top:10px;">Choose day type:</div>
+
+<select id="color">
+    <option value="">No color</option>
+    <option value="green">🟢 Rest</option>
+    <option value="red">🔴 Run</option>
+    <option value="yellow">🟡 Gym</option>
+</select>
+
+<br>
+
+<button class="save-btn" onclick="saveDay()">Save</button>
+
+<script>
+let currentYear = 2026;
+let currentMonth = 3; // 0=Jan, 3=April
+
+const API = "http://localhost:3000";
+
+let currentDate = null;
+let selectedElement = null;
+
+
+// ================= CALENDAR =================
+function generateCalendar() {
+
+    const calendar = document.getElementById("calendar");
+    calendar.innerHTML = "";
+
+    const year = currentYear;
+    const month = currentMonth;
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let firstDay = new Date(year, month, 1).getDay();
+    firstDay = firstDay === 0 ? 6 : firstDay - 1;
+
+    const weekDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+    weekDays.forEach(d => {
+        const div = document.createElement("div");
+        div.className = "week";
+        div.innerText = d;
+        calendar.appendChild(div);
+    });
+
+    for (let i = 0; i < firstDay; i++) {
+        calendar.appendChild(document.createElement("div"));
+    }
+
+    for (let i = 1; i <= daysInMonth; i++) {
+
+        const div = document.createElement("div");
+        div.className = "day";
+
+        const date = `${year}-${String(month+1).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
+
+        div.innerText = i;
+        div.dataset.date = date;
+
+        div.onclick = () => selectDay(date, div);
+        div.ondblclick = () => toggleDone(date, div);
+
+        calendar.appendChild(div);
+    }
+
+    // 🔥 важно
+    updateMonthLabel();
+    loadColors()
+    if (d.done) {
+    el.classList.add("done");
+} else {
+    el.classList.remove("done");
+};
+}
+
+
+// ================= LOAD COLORS =================
+async function loadColors() {
+
+    const res = await fetch(`${API}/days`);
+    const days = await res.json();
+
+    days.forEach(d => {
+
+        if (!d.date) return;
+
+        const date = d.date.slice(0, 10);
+
+        const el = document.querySelector(`[data-date="${date}"]`);
+
+        if (!el) return;
+
+        // очистка классов
+        el.classList.remove("green","red","yellow","done");
+
+        // цвет
+        if (d.color) {
+            el.classList.add(d.color);
+        }
+
+        // 🔥 ВАЖНО: DONE СТАТУС
+        if (d.done === true) {
+            el.classList.add("done");
+        }
+    });
+}
+async function toggleDone(date, element) {
+
+    const res = await fetch(`${API}/days/${date}`);
+    let data = {};
+
+    if (res.ok) {
+        data = await res.json();
+    }
+
+    const newDone = !data.done;
+
+    await fetch(`${API}/days`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+            user_id: 1,
+            date,
+            note: data.note || "",
+            color: data.color || "",
+            done: newDone
+        })
+    });
+
+    if (newDone) {
+        element.classList.add("done");
+    } else {
+        element.classList.remove("done");
+    }
+}
+
+// ================= SELECT DAY =================
+async function selectDay(date, element) {
+
+    currentDate = date;
+    selectedElement = element;
+
+    // снять выделение
+    document.querySelectorAll(".day")
+        .forEach(d => d.classList.remove("selected"));
+
+    element.classList.add("selected");
+
+    document.getElementById("selectedDate").innerText = date;
+
+    const noteInput = document.getElementById("note");
+    const colorInput = document.getElementById("color");
+
+    // 🔥 ВАЖНО: сразу очищаем
+    noteInput.value = "";
+    colorInput.value = "";
+
+    try {
+        const res = await fetch(`${API}/days/${date}`);
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        // если есть данные — заполняем
+        noteInput.value = data.note || "";
+        colorInput.value = data.color || "";
+
+    } catch (err) {
+        console.error("selectDay error:", err);
+    }
+
+    // UX
+    noteInput.focus();
+}
+
+// ================= SAVE =================
+async function saveDay() {
+
+    if (!currentDate || !selectedElement) return;
+
+    const note = document.getElementById("note").value;
+    const color = document.getElementById("color").value;
+
+    await fetch(`${API}/days`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+            user_id: 1,
+            date: currentDate,
+            note,
+            color
+        })
+    });
+
+    // 🔥 СРАЗУ обновляем UI (без backend lookup)
+    selectedElement.classList.remove("green","red","yellow");
+
+    if (color) {
+        selectedElement.classList.add(color);
+    }
+}
+function updateMonthLabel() {
+    const date = new Date(currentYear, currentMonth);
+    document.getElementById("monthLabel").innerText =
+        date.toLocaleString('en', { month: 'long', year: 'numeric' });
+}
+function changeMonth(step) {
+
+    currentMonth += step;
+
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    }
+
+    if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+
+    generateCalendar();
+}
+
+// INIT
+generateCalendar();
+
+</script>
+
+</body>
+</html>
