@@ -48,7 +48,7 @@ body {
 .yellow { background: #fff3a3; }
 
 textarea {
-    width: 33%;
+    width: 100%;
     height: 100px;
     font-size: 20px;
 }
@@ -58,19 +58,21 @@ button {
 }
 
 .save-btn {
-    width: 10%;
+    width: 20%;
+    box-sizing: border-box;
     padding: 12px;
     font-size: 14px;
-    margin-top: 10px;
+    margin-top: 12px;
     cursor: pointer;
 }
 
 /* 🔥 SELECT */
 select {
-    width: 10%;
-    padding: 8px;
+    width: 20%;
+    padding: 12px;
     font-size: 14px;
-    margin-top: 8px;
+    margin-top: 10px;
+    margin-bottom: 12px;
     cursor: pointer;
 }
 .done {
@@ -82,6 +84,32 @@ select {
 .done:hover {
     opacity: 0.6;
     filter: blur(0px);
+}
+.main {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+
+
+.left {
+    flex: 1;
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 10px;
+
+}
+
+.right {
+    flex: 1;
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 10px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 </style>
@@ -107,22 +135,35 @@ select {
 
 <h3 id="selectedDate">Select a day</h3>
 
-<textarea id="note" placeholder="Comment"></textarea>
+<div class="main">
 
-<br>
+    <!-- LEFT -->
+    <div class="left">
+        <textarea id="note" placeholder="Comment"></textarea>
 
-<div style="margin-top:10px;">Choose day type:</div>
+        <div style="margin-top:10px;">Choose day type:</div>
 
-<select id="color">
-    <option value="">No color</option>
-    <option value="green">🟢 Rest</option>
-    <option value="red">🔴 Run</option>
-    <option value="yellow">🟡 Gym</option>
-</select>
+        <select id="color">
+            <option value="">No color</option>
+            <option value="green">🟢 Rest</option>
+            <option value="red">🔴 Run</option>
+            <option value="yellow">🟡 Gym</option>
+        </select>
 
-<br>
+        <button class="save-btn" onclick="saveDay()">Save</button>
+    </div>
 
-<button class="save-btn" onclick="saveDay()">Save</button>
+    <!-- RIGHT -->
+    <div class="right">
+        <h3>📊 Dashboard</h3>
+        <div id="stats">
+    <div id="monthStats">Loading month...</div>
+    <hr style="margin:10px 0;">
+    <div id="allTimeStats">Loading all time...</div>
+</div>
+    </div>
+
+</div>
 
 <script>
 let currentYear = 2026;
@@ -180,11 +221,6 @@ function generateCalendar() {
     // 🔥 важно
     updateMonthLabel();
     loadColors()
-    if (d.done) {
-    el.classList.add("done");
-} else {
-    el.classList.remove("done");
-};
 }
 
 
@@ -334,10 +370,52 @@ function changeMonth(step) {
     }
 
     generateCalendar();
+    loadStats();
 }
+async function loadStats() {
 
+    const res = await fetch(`${API}/days`);
+    const days = await res.json();
+
+    let month = { green: 0, red: 0, yellow: 0 };
+    let all = { green: 0, red: 0, yellow: 0 };
+
+    days.forEach(d => {
+
+        const isCurrentMonth =
+            new Date(d.date).getMonth() === currentMonth &&
+            new Date(d.date).getFullYear() === currentYear;
+
+        // ALL TIME
+        if (d.color === "green") all.green++;
+        if (d.color === "red") all.red++;
+        if (d.color === "yellow") all.yellow++;
+
+        // MONTH
+        if (isCurrentMonth) {
+            if (d.color === "green") month.green++;
+            if (d.color === "red") month.red++;
+            if (d.color === "yellow") month.yellow++;
+        }
+    });
+
+    document.getElementById("monthStats").innerHTML = `
+        <b>📅 This month</b><br>
+        🟢 Rest: ${month.green}<br>
+        🔴 Run: ${month.red}<br>
+        🟡 Gym: ${month.yellow}
+    `;
+
+    document.getElementById("allTimeStats").innerHTML = `
+        <b>🌍 All time</b><br>
+        🟢 Rest: ${all.green}<br>
+        🔴 Run: ${all.red}<br>
+        🟡 Gym: ${all.yellow}
+    `;
+}
 // INIT
 generateCalendar();
+loadStats();
 
 </script>
 
