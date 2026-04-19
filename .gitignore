@@ -26,4 +26,5 @@ build/
 
 # optional cache
 .cache/
-test.http
+test.
+ed.html
